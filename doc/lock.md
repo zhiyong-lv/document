@@ -819,3 +819,41 @@ public abstract class AbstractQueuedSynchronizer {
    }
 }
 ```
+
+# Lock 接口和 Condition 接口的使用方式
+再来回顾一下Lock接口和Condition接口。从下面的接口定义可以看出，这两个类主要集中于不同的方面：
+1. Lock也会有阻塞的效果，但主要还是集中在对临界资源对保护
+2. Condition可以作为对临界资源访问的一种限制，但主要集中在等待
+3. 每个Lock都可以生成多个Condition
+
+```java
+
+public interface Lock {
+   void lock();
+   void lockInterruptibly() throws InterruptedException;
+   boolean tryLock();
+   boolean tryLock(long time, TimeUnit unit) throws InterruptedException;
+   void unlock();
+   Condition newCondition();
+}
+
+public interface Condition {
+   void await() throws InterruptedException;
+   void awaitUninterruptibly();
+   long awaitNanos(long nanosTimeout) throws InterruptedException;
+   boolean await(long time, TimeUnit unit) throws InterruptedException;
+   boolean awaitUntil(Date deadline) throws InterruptedException;
+   void signal();
+   void signalAll();
+}
+```
+
+一般而言，每一个Lock都是通过其内部的一个AQS静态类来实现的。不同的lock的区别在于对AQS类实现的不同
+
+Lock接口有多种不同的实现，分别使用于不同的场景
+* ReentrantLock是可以重入的锁，有两种实现，其中的非公平锁和synchronized实现很类似。而公平锁则通过对是否有等待队列判断是否应该去获取锁
+* StampedLock是另外一种形式的读写锁。但它与ReentrantLock相比，好处在于写操作可以抢占读操作的锁，读操作有两种，一种是加锁的读操作，另外一种是读不加锁，但可以知道读后是否值发生类改变
+* CountDownLatch是一种同步器，并不是锁。创建的时候利用可重入锁的特性，在释放锁的时候通知所有等待锁的线程，并唤醒。利用了AQS共享锁的机制，初始化的时候，就已经等待状态，CountDownLatch的await操作实际调用的AQS的获取锁操作，由于CountDownLatch初始化的时候就已经被锁定，其他的线程调用await就相当于加入了共享锁的等待队列。当锁释放的时候就会直接唤醒
+* LimitLatch （org.apache.tomcat.util.threads），是一个计数器锁；当达到限制之后，再次申请资源就会导致线程阻塞
+* Semaphore 也是一个共享锁，对应一组资源，当获取资源前，需要申请一个资源，如果代表资源的个数为0，那么就阻塞。
+* Worker （ThreadPoolExecutor），这里是一个简单的不可重入的锁，利用非共享锁实现。
