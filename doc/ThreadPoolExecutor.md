@@ -162,7 +162,7 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
 #### 线程Worker
 线程池创建线程，并使用这些线程执行FutureTask。执行完成后，回收线程到空闲池中等待再次分派。
 下面是Worker的源码。通过对这部分源码对分析，可以得出Worker对主要功能有
-1. Worker与运行它对Thread是一一对应的。
+1. Worker与运行它对Thread是一一对应的。每次新建一个Worker的时候，就会将运行它的Thread同时传入
 2. 为了实现对Thread的管理，Worker中也实现了AQS的锁管理。这样，当worker运行时，线程池就不能再次进行这个worker了
 ```java
 private final class Worker
