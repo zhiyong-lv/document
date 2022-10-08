@@ -54,10 +54,10 @@ Condition接口与Lock接口结合起来，将原来在单个object里面的awai
 ## ReadWriteLock
 ### 读写锁相互关系
 
-|     | 无锁      | 读锁  | 写锁    |
-|-----|:--------|-----|-------|
-| 加读锁 | Success | Success    | Block |
-| 加写锁 | Success        | Block    |   Block    |
+|     | 无锁      | 读锁      |  写锁   |
+|-----|---------|---------|:-----:|
+| 加读锁 | Success | Success | Block |
+| 加写锁 | Success | Block   | Block |
 
 ## AbstractQueuedSynchronizer
 提供了一种框架，实现了以来与先入先出队列实现的阻塞锁和相关的同步器，如信号量和事件等。

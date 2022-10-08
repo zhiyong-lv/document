@@ -58,6 +58,19 @@ LinkedBlockingQueue是BlockingQueue的一个FIFO实现类。
 * 吞吐量比较大，但在大多数的并发场景下，性能可预测性比较差
 
 对于LinkedBlockingQueue来说，它通过分别的读写锁来实现。而元素的数量则使用一个AtomicInteger来表示，从而避免对数值变化是，同时获取两把锁。
+这样可以保证多个并发读操作或者多个并发写操作当原子性。
+那么读写之间的原子行如何保证呢：
+1. 首先我们看LinkedBlockingQueue内部数据结构的时间。其内部所有的元素都在一个链表上。头节点为element为null的节点。当链表没有任何元素时，头节点的element为null，其next也为null。
+2. 如果count为0时，对LinkedBlockingQueue进行读写操作，所有的take操作都会被阻塞，而put操作不会被阻塞。也就是说所有对空的头节点的读操作都会被阻塞，不能执行，对头节点只能进行写操作。很显然，这时候读写操作不会同时操作。
+3. 当执行写操作时，首先将要写入的node加入到链表上，然后再改变count的值。由于读操作阻塞条件时监控count的值，即使有一个瞬间，新的node被加入到链表上，而数量还没有变，读操作也感知不到。
+4. 通过对count的监控，这样就保证了读写操作不会同时操作头节点的next指针。
+5. 当count不为0，且小于最大容量时，这时读写操作都可以进行。由于有读操作操作的时头指针，而写操作则操作的时尾指针，读写操作分别操作链表的不同node，所以读写操作不会产生冲突
+6. 当count达到了最大容量时，这时只能进行读操作。所以也不会读写冲突。
+7. 当对LinkedBlockingQueue遍历时，所有读写锁同时都会锁住。
+
+具体的读写操作时，链表的变化可以参考[LinkedBlockingQueue.drawio](LinkedBlockingQueue.drawio)
+
+### 
 
 
 
