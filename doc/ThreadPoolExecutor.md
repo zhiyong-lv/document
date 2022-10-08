@@ -237,7 +237,9 @@ private final class Worker
 }
 ```
 
-runWorker部分的源码如下：
+runWorker部分的源码如下，runWorker可能会在两个地方阻塞，以避免在while循环里面反复执行导致cpu空转：
+1. getTask方法取出下一个要执行的任务
+2. lock方法获取锁时
 ```java
 class ThreadPoolExecutor {
     final void runWorker(Worker w) {
@@ -285,4 +287,7 @@ class ThreadPoolExecutor {
     }
 }
 ```
+
+#### 线程池任务提交
+
 
