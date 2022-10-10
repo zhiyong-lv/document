@@ -147,6 +147,53 @@ PriorityBlockingQueue的内部数据结构：
 * comparator：比较器，用来比较元素的大小
 * notEmpty：condition，当为空时，会进行阻塞
 
+### DelayQueue
+只有delay时间到了的元素才能被取出来。DelayQueue采用了Leader-Follower设计模式
+> An unbounded blocking queue of Delayed elements, in which an element can only be taken when its delay has expired. 
+> 
+
+#### Leader-Follower设计模式
+Leader-Follower线程模型有三个重要的线程：Leader线程、Processor线程以及Follower线程
+- Leader线程：始终监控任务队列，执行新任务并唤醒Follower线程争夺Leader线程的位置
+- Processor线程：任务执行线程，总是是由Leader线程转换而来，任务执行完成后可能成为Leader线程，也可能阻塞成为Follower线程。
+- Follower线程：阻塞的任务线程，可能由Processor线程转换而来，也可能是新提交的线程任务被阻塞成为Processor线程。
+
+
+在Leader-Follower线程模型永远只有一个Leader线程，同时有多个Processor线程以及若干个Follower线程。我们假设线程池中有N个线程，Processor线程有X个，Leader线程始终只有一个，那么Following线程的数量为：N - X - 1。
+
+Leader线程会实时监控任务列表，如果有新的任务到达，Leader线程会转换成Processor线程并处理对应的任务，同时还会唤醒阻塞的Follower线程，这时候Follower线程便会抢占资源成为Leader线程（永远只会有一个Leader线程）。
+
+在Processor线程处理完成后，可以再次竞争资源成为Leader线程，也可能因为Leader线程存在而阻塞成为Follower线程，而Follower线程的目标始终只有一个那便抢占资源成为Leader线程。
+
+以上便是Leader-Follower线程模型的执行模式，线程始终在Leader、Processor以及Follower角色中转换，同时线程状态始终在Leading、Processing以及Following之间转换，周而复始，直到线程池终止为止。
+
+![img.png](img.png)
+
+#### DelayQueue中的Leader-Follower设计模式
+DelayQueue使用了一种Leader-Follower设计模式的变种，从而最小化非必要的等待时间。
+1. DelayQueue的头是过期最长的一个元素，如果没有延时到期的元素，则poll时会返回null
+2. 对于未过期的元素，不能删除或取出。但统计大小时会一起统计
+3. 允许取出新加入的等待时间较短的元素
+
+
+DelayQueue每次加入一个新元素时，都会将其加入到优先级队列中。
+优先级队列是按照剩余等待时间排序的最小堆。
+如果新加入的元素等待时间最短，且当前有等待取出的leader线程，则终止原有的等待的leader，重新发起一次take
+如果take时，等待时间最少的元素的等待时间为0或者负数，则直接取出返回。
+如果take时，等待时间最少的元素的等待时间为正数，且leader为空，则将leader线程设置为本线程，然后开始等待，并设置超时时间为当前头节点的剩余等待时间。
+如果take时，等待时间最少的元素的等待时间为正数，且leader不为空，则直接开始等待。
+如果take过程中，没有新加入的元素，或者新加入元素的等待时间不为最小值，则leader线程继续运行并返回头节点，然后通知其他等待的线程。
+其他的等待线程开始抢锁，然后抢到的继续之前的take过程。
+
+从上面的分析可以得出，leader线程用来等待超时时间结束，一旦结束之后，就会唤醒剩余的等待线程。
+剩余等待线程在锁竞争之后，会产生一个新的leader线程，然后继续之前的过程。
+
+也就是说，DelayQueue中的Leader-Follower设计模式的角色如下：
+Leader线程：用来等待超时结束的阻塞的take的线程
+Follower线程：leader之外的阻塞的take的线程
+Processor线程：take返回后的线程，自动转化为leader线程。（可能成为过leader线程，也可以没有）
+
+
 
 
 
