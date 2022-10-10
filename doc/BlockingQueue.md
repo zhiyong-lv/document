@@ -50,6 +50,20 @@ BlockingQueue的主要操作如下：
 并且对于BlockingQueue来说，虽然继承了Queue接口和Collection接口，但一般不建议使用阻塞接口以外的接口。
 BlockingQueue还提供了查询剩余可以插入的元素的数量，即剩余容量的查询接口。如果为无限容量，name就返回Integer.MAX_VALUE
 
+### TransferQueue
+TransferQueue是BlockingQueue的子接口，主要是为了确保发送的信息能被消费者消费到而增加来一些接口
+> A BlockingQueue in which producers may wait for consumers to receive elements. A TransferQueue may be useful for example in message passing applications in which producers sometimes (using method transfer) await receipt of elements by consumers invoking take or poll, while at other times enqueue elements (via method put) without waiting for receipt.
+
+```java
+public interface TransferQueue<E> extends BlockingQueue<E> {
+    boolean tryTransfer(E e);
+    void transfer(E e) throws InterruptedException;
+    boolean tryTransfer(E e, long timeout, TimeUnit unit) throws InterruptedException;
+    boolean hasWaitingConsumer();
+    int getWaitingConsumerCount();
+}
+```
+
 ## 实现类
 ### LinkedBlockingQueue
 LinkedBlockingQueue是BlockingQueue的一个FIFO实现类。
