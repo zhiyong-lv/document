@@ -193,7 +193,80 @@ Leader线程：用来等待超时结束的阻塞的take的线程
 Follower线程：leader之外的阻塞的take的线程
 Processor线程：take返回后的线程，自动转化为leader线程。（可能成为过leader线程，也可以没有）
 
+### SynchronousQueue
+SynchronousQueue有两种模式，一种是公平模式，一种是非公平模式。
+公平模式下，使用的是双端队列，而非公平模式下使用的是栈模式。
 
+对于SynchronousQueue来说，节点分为两种：
+- 请求节点
+- 数据节点
+
+如果队列中只有请求节点，没有数据节点，那么请求节点所代表的线程将会被阻塞
+反之亦然。
+
+另外，SynchronousQueue内部没有存储空间，这样就造成了读取和写入的阻塞
+- 写入数据时，如果这时没有等待读取的线程，则会阻塞
+- 读出数据时，如果这时没有等待写入的线程，则会阻塞
+- 无法遍历
+
+无论是队列还是栈，都继承了抽象类Transferer。这个抽象类定义了一个方法transfer，
+用来实现put或者take的操作。transfer这一个方法就可以统一代表两个操作，是因为
+双数据结构下，put和take操作是对称的，所以几乎大部分的代码都能合并处理。
+这就导致transfer函数比较长，但还是比拆成几乎重复但两部分更好遵循。
+
+队列和栈的数据结构除了一点细节之外，大部分都概念相似。为了简单起见，还是将他们
+分开，这样以后更好分开演进。
+
+SynchronousQueue实现了一种名为"Nonblocking Concurrent Objects with
+Condition Synchronization"的[算法](http://www.cs.rochester.edu/u/scott/synchronization/pseudocode/duals.html)，
+但为了更好的在同步队列中使用，并且能够处理中断，SynchronousQueue进行了一些
+修改：
+1. 原始算法使用位标记指针，但此处的算法在节点中使用模式位，从而导致许多进一步的调整。
+2. SynchronousQueues一定会阻塞线程，直到条件满足为止
+3. 支持通过超时和中断方式取消put或者take
+
+SynchronousQueue使用LockSupport的park和unpark对线程进行阻塞。但如果
+能够在自旋一下后，节点可以满足条件，那对应的线程就不会阻塞。当竞争很多时，
+自旋可以极大的提高吞吐量。如果竞争不多时，少量的自旋基本上时察觉不到的。
+
+队列和栈有不同的清理的方式。
+* 对队列来说，如果节点被取消了，那么就可以直接删除
+* 对栈来说，我们还需要再遍历一下才能确定是否可以删除。
+
+下面为stack实现的transfer方法的原理
+```java
+/*
+ * Basic algorithm is to loop trying one of three actions:
+ *
+ * 1. If apparently empty or already containing nodes of same
+ *    mode, try to push node on stack and wait for a match,
+ *    returning it, or null if cancelled.
+ *    如果stack为空，或者已经有相同模式的节点，那么就尝试将新的节点
+ *    也加入到栈中等待match后返回。如果cancel时还没有match，那么就
+ *    返回null
+ *
+ * 2. If apparently containing node of complementary mode,
+ *    try to push a fulfilling node on to stack, match
+ *    with corresponding waiting node, pop both from
+ *    stack, and return matched item. The matching or
+ *    unlinking might not actually be necessary because of
+ *    other threads performing action 3:
+ *    如果栈中包含了一个互不模式的节点，那么就尝试将一个fulfilling模式
+ *    的节点推入栈中，匹配对应的等待的节点后，从stack中弹出，然后将匹配
+ *    的数据返回。
+ *    但因为操作3但存在，很有可能需要进行匹配和断开链接。
+ *
+ * 3. If top of stack already holds another fulfilling node,
+ *    help it out by doing its match and/or pop
+ *    operations, and then continue. The code for helping
+ *    is essentially the same as for fulfilling, except
+ *    that it doesn't return the item.
+ *    如果stack中已经包含了另外的一个fulfilling模式的节点，通过匹配或者弹出操作帮助它出栈
+ *    然后再重复之前的操作。这部分代码除了不返回值以外，和操作2几乎相同。
+ */
+```
+
+### LinkedTransferQueue
 
 
 
