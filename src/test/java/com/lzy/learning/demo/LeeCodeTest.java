@@ -1,13 +1,187 @@
 package com.lzy.learning.demo;
 
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Stack;
 
 public class LeeCodeTest {
+
+    @Test
+    void searchRangeTest() {
+        int[] nums = new int[] {5,7,7,8,8,10};
+        int target = 8;
+        int [] expectedRst = new int[] {3,4};
+//        int[] nums = new int[] {2,2};
+//        int target = 3;
+//        int [] expectedRst = new int[] {-1,-1};
+        int[] result = searchRange(nums, target);
+        Assertions.assertArrayEquals(expectedRst, result);
+    }
+
+    public int[] searchRange(int[] nums, int target) {
+        int length = nums.length;
+        int[] result = new int[]{-1, -1};
+
+        if (length == 0) {
+            return result;
+        }
+
+        if (length == 1) {
+            if (nums[0] == target) {
+                result[0] = result[1] = 0;
+            }
+            return result;
+        }
+
+        for (int nextStart = 0, nextEnd = nums.length -1, mid = (nextStart + nextEnd) / 2; nextStart <= nextEnd ; mid = (nextStart + nextEnd) / 2) {
+            if (nums[mid] == target) {
+                return expandRange(nums, mid);
+            }
+
+            if ((nextStart + nextEnd) / 2 == nextStart) {
+                if (nums[nextEnd] == target) {
+                    result[0] = nextEnd;
+                    result[1] = nextEnd;
+                }
+                return result;
+            }
+
+            if (nums[mid] > target) {
+                // go to left part
+                nextEnd = mid - 1;
+            } else {
+                // go to right part
+                nextStart = mid + 1;
+            }
+        }
+
+        return result;
+    }
+
+    private int[] expandRange(int[] nums, int index) {
+        int target = nums[index];
+        int start = index, end = index;
+        while (start - 1 >= 0 && nums[start - 1] == target) {
+            start--;
+        }
+
+        while (end + 1 < nums.length && nums[end + 1] == target) {
+            end++;
+        }
+
+        return new int[]{start, end};
+    }
+
+    @Test
+    void testSearch() {
+        int[] nums = new int[]{4, 5, 6, 7, 0, 1, 2};
+//        int[] nums = new int[]{1,3};
+//        int[] nums = new int[]{8, 9, 2, 3, 4};
+        Map<Integer, Integer> maps = new HashMap<>();
+//        maps.put(9, 1);
+//        maps.put(1,0);
+        maps.put(0, 4);
+        maps.put(3, -1);
+        maps.entrySet().forEach(e -> Assertions.assertEquals(e.getValue(), search(nums, e.getKey())));
+    }
+
+
+    public int search(int[] nums, int target) {
+        return search(nums, 0, nums.length - 1, target);
+    }
+
+    private int search(int[] nums, final int start, final int end, final int target) {
+        if (start < 0 || end >= nums.length || end < start) {
+            return -1;
+        }
+
+        if (end == start) {
+            return nums[start] == target ? start : -1;
+        }
+
+        boolean revertIndexFound = false;
+        for (int nextStart = start, nextEnd = end, i = (nextEnd + nextStart) / 2; nextEnd >= nextStart && nextStart >= 0 && nextEnd < nums.length; i = (nextEnd + nextStart) / 2) {
+            if (nums[i] == target) {
+                return i;
+            }
+            if (nums[i] > target) {
+                int tempNextEnd = i - 1;
+                int tempIndex = (tempNextEnd + nextStart) / 2;
+                if (nums[tempIndex] > nums[i]) {
+                    nextStart = tempIndex + 1;
+                    revertIndexFound = true;
+                }
+                nextEnd = i - 1;
+            } else {
+                int tempNextStart = i + 1;
+                int tempIndex = (nextEnd + tempNextStart) / 2;
+                if (nums[tempIndex] < nums[i]) {
+                    nextEnd = tempIndex - 1;
+                    revertIndexFound = true;
+                }
+                nextStart = i + 1;
+            }
+        }
+
+        if (revertIndexFound) {
+            return -1;
+        }
+
+        int mid = (start + end) / 2;
+        if (nums[mid] < target) {
+            return search(nums, start, mid-1, target);
+        } else {
+            return search(nums, mid+1, end, target);
+        }
+    }
+
+    /**
+     * @param nums   nums array
+     * @param start  include
+     * @param end    exclude
+     * @param target num to find
+     * @return index of num, or -1
+     */
+    private int search1(int[] nums, int start, int end, int target) {
+        if (start < 0 || end > nums.length || end < 0 || start >= nums.length) {
+            return -1;
+        }
+
+        if (end - start == 0 || end - start == 1) {
+            return target == nums[start] ? start : -1;
+        }
+
+        int midThisRound = (start + end) / 2;
+
+        if (target < nums[midThisRound]) {
+            int normalSearch = search(nums, start, midThisRound, target);
+            if (normalSearch >= 0) {
+                return normalSearch;
+            }
+            if (midThisRound + 1 > end) {
+                return -1;
+            } else {
+                return search(nums, midThisRound + 1, end, target);
+            }
+        } else {
+            int normalSearch = search(nums, midThisRound, end, target);
+            if (normalSearch >= 0) {
+                return normalSearch;
+            }
+            if (midThisRound - 1 < start) {
+                return -1;
+            } else {
+                return search(nums, start, midThisRound - 1, target);
+            }
+        }
+    }
+
     @ParameterizedTest
     @CsvSource({"'',0", "((),2", "()((),2", ")()()),4", "(()()),6", ")(((((()())()()))()(()))(,22", ")()(((())))(,10", ")(())))(())()),6",})
     void longestValidParenthesesTest(String s, int expected) {
