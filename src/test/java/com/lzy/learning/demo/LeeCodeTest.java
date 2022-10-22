@@ -5,18 +5,114 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Stack;
+import java.util.*;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 public class LeeCodeTest {
 
+
+
+    @Test
+    void isValidSudokuTest() {
+        char[][] board = new char[][]{{'5', '3', '.', '.', '7', '.', '.', '.', '.'}, {'6', '.', '.', '1', '9', '5', '.', '.', '.'}, {'.', '9', '8', '.', '.', '.', '.', '6', '.'}, {'8', '.', '.', '.', '6', '.', '.', '.', '3'}, {'4', '.', '.', '8', '.', '3', '.', '.', '1'}, {'7', '.', '.', '.', '2', '.', '.', '.', '6'}, {'.', '6', '.', '.', '.', '.', '2', '8', '.'}, {'.', '.', '.', '4', '1', '9', '.', '.', '5'}, {'.', '.', '.', '.', '8', '.', '.', '7', '9'}};
+        isValidSudoKu(board);
+    }
+
+    int validLength = 9;
+    int mask = 0;
+
+    {
+        IntStream.range(0, 9).forEach(i -> mask |= 1 << i);
+    }
+
+    public boolean isValidSudoKu(char[][] board) {
+        if (!isValidRequiredSize(board, validLength, validLength)) {
+            return false;
+        }
+
+        int[] matched = new int[9];
+        int rowMatchedStart = 0;
+        int colMatchedStart = '9' - '1' + 1 + rowMatchedStart;
+        int zoneMatchedStart = '9' - '1' + 1 + colMatchedStart;
+
+        for (int row = 0; row < board.length; row++) {
+            for (int col = 0; col < board[row].length; col++) {
+                char c = board[row][col];
+                if (c - '.' == 0) {
+                    continue;
+                }
+
+                int index = c - '1';
+                if (index < 0 || index > '9' - '1') {
+                    return false;
+                }
+
+                int rowMatchedBit = 1 << (index + rowMatchedStart);
+                int rowBitmap = matched[row];
+                if ((rowBitmap & rowMatchedBit) > 0) {
+                    return false;
+                } else {
+                    matched[row] |= rowMatchedBit;
+                }
+
+                int colMatchedBit = 1 << (index + colMatchedStart);
+                int colBitmap = matched[col];
+                if ((colBitmap & colMatchedBit) > 0) {
+                    return false;
+                } else {
+                    matched[col] |= colMatchedBit;
+                }
+                int zoneMatchedBit = 1 << (index + zoneMatchedStart);
+                int zoneBitMapIndex = (row / 3) * 3 + (col / 3);
+                if ((matched[zoneBitMapIndex] & zoneMatchedBit) > 0) {
+                    return false;
+                } else {
+                    matched[zoneBitMapIndex] |= zoneMatchedBit;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    public boolean isValidSudoku1(char[][] board) {
+        if (!isValidRequiredSize(board, validLength, validLength)) {
+            return false;
+        }
+
+        return IntStream.range(0, 9).allMatch(i -> isValidRequiredZone(board, i, i + 1, 0, validLength)) &&
+                IntStream.range(0, 9).allMatch(i -> isValidRequiredZone(board, 0, validLength, i, i + 1)) &&
+                Stream.of(0, 3, 6).allMatch(row -> Stream.of(0, 3, 6).allMatch(col -> isValidRequiredZone(board, row, row + 3, col, col + 3)));
+    }
+
+    private boolean isValidRequiredSize(char[][] board, int requiredRow, int requiredCol) {
+        return board.length == requiredRow && Arrays.stream(board).allMatch(arr -> arr.length == requiredCol);
+    }
+
+    private boolean isValidRequiredZone(char[][] board, int startRow, int endRow, int startCol, int endCol) {
+        int bitmap = 0;
+        for (int row = startRow; row < endRow; row++) {
+            for (int col = startCol; col < endCol; col++) {
+                char c = board[row][col];
+                if (c - '.' == 0) {
+                    continue;
+                }
+                int bit = 1 << (c - '1');
+                if ((mask & bit) == 0 || (bitmap & bit) > 0) {
+                    return false;
+                }
+                bitmap |= bit;
+            }
+        }
+        return true;
+    }
+
     @Test
     void searchRangeTest() {
-        int[] nums = new int[] {5,7,7,8,8,10};
+        int[] nums = new int[]{5, 7, 7, 8, 8, 10};
         int target = 8;
-        int [] expectedRst = new int[] {3,4};
+        int[] expectedRst = new int[]{3, 4};
 //        int[] nums = new int[] {2,2};
 //        int target = 3;
 //        int [] expectedRst = new int[] {-1,-1};
@@ -39,7 +135,7 @@ public class LeeCodeTest {
             return result;
         }
 
-        for (int nextStart = 0, nextEnd = nums.length -1, mid = (nextStart + nextEnd) / 2; nextStart <= nextEnd ; mid = (nextStart + nextEnd) / 2) {
+        for (int nextStart = 0, nextEnd = nums.length - 1, mid = (nextStart + nextEnd) / 2; nextStart <= nextEnd; mid = (nextStart + nextEnd) / 2) {
             if (nums[mid] == target) {
                 return expandRange(nums, mid);
             }
@@ -135,9 +231,9 @@ public class LeeCodeTest {
 
         int mid = (start + end) / 2;
         if (nums[mid] < target) {
-            return search(nums, start, mid-1, target);
+            return search(nums, start, mid - 1, target);
         } else {
-            return search(nums, mid+1, end, target);
+            return search(nums, mid + 1, end, target);
         }
     }
 
