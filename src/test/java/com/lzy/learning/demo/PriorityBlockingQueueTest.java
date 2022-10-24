@@ -3,10 +3,13 @@ package com.lzy.learning.demo;
 import org.junit.jupiter.api.Test;
 
 import java.util.Date;
+import java.util.Objects;
 import java.util.Random;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.IntStream;
 
 
@@ -19,10 +22,59 @@ public class PriorityBlockingQueueTest {
     }
 }
 
+class SynchronousQueueV2<E> {
+    Lock lock = new ReentrantLock();
+    Condition reading = lock.newCondition();
+    Condition readDone = lock.newCondition();
+    Condition writing = lock.newCondition();
+    Condition writeDone = lock.newCondition();
+    E temp;
+
+    void put(E e) throws InterruptedException {
+        lock.lock();
+        try {
+            while (true) {
+                if (Objects.isNull(temp)) {
+                    temp = e;
+                    writeDone.signalAll();
+                    readDone.await();
+                    return;
+                } else {
+                    writing.signalAll();
+                    reading.await();
+                }
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    E take() throws InterruptedException {
+        lock.lock();
+        try {
+            while (true) {
+                if (Objects.nonNull(temp)) {
+                    E e = temp;
+                    temp = null;
+                    readDone.signalAll();
+                    writeDone.await();
+                    return e;
+                } else {
+                    reading.signalAll();
+                    writing.await();
+                }
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+}
+
 class SynchronousQueueTest {
     @Test
     void putTest() throws InterruptedException {
-        SynchronousQueue<Integer> synchronousQueue = new SynchronousQueue<>();
+        // SynchronousQueue<Integer> synchronousQueue = new SynchronousQueue<>();
+        SynchronousQueueV2<Integer> synchronousQueue = new SynchronousQueueV2<>();
 
         int count = 10;
         for (int i = 0; i < count; i++) {
