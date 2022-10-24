@@ -54,6 +54,8 @@ BlockingQueue还提供了查询剩余可以插入的元素的数量，即剩余�
 TransferQueue是BlockingQueue的子接口，主要是为了确保发送的信息能被消费者消费到而增加来一些接口
 > A BlockingQueue in which producers may wait for consumers to receive elements. A TransferQueue may be useful for example in message passing applications in which producers sometimes (using method transfer) await receipt of elements by consumers invoking take or poll, while at other times enqueue elements (via method put) without waiting for receipt.
 
+从下面的接口可以看出，当有消费者等待时，则可以成功调用transfer不需要等待，如果没有，则根据对应methods的行为返回。
+对于TransferQueue来说，它时继承BlockingQueue的。消费的相关接口，如poll都继承自该接口。
 ```java
 public interface TransferQueue<E> extends BlockingQueue<E> {
     boolean tryTransfer(E e);
