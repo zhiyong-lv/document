@@ -606,3 +606,7 @@ cglib动态代理的原理，可以参考这篇[文章](https://www.jianshu.com/
 - JDK 动态代理基于接口，CGLIB 动态代理基于类。因为 JDK 动态代理生成的代理类需要继承 java.lang.reflect.Proxy，而 Java 只支持单继承，所以只能基于接口。
 - JDK 动态代理和 CGLIB 动态代理都是在运行期生成字节码，JDK 是直接写 Class 字节码，CGLIB 使用 ASM 框架写 Class 字节码。
 - JDK 通过反射机制调用方法，CGLIB 通过 FastClass 机制直接调用方法，所以 CGLIB 执行的效率更高。
+
+#### spring bean 加载机制
+spring bean加载机制可以参考这篇[文章](https://zhuanlan.zhihu.com/p/81404427)
+
