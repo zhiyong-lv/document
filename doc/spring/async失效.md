@@ -608,5 +608,15 @@ cglib动态代理的原理，可以参考这篇[文章](https://www.jianshu.com/
 - JDK 通过反射机制调用方法，CGLIB 通过 FastClass 机制直接调用方法，所以 CGLIB 执行的效率更高。
 
 #### spring bean 加载机制
-spring bean加载机制可以参考这篇[文章](https://zhuanlan.zhihu.com/p/81404427)
+spring bean加载机制可以参考这篇[文章](https://zhuanlan.zhihu.com/p/81404427) 
+bean的生命周期可以参考这篇[文章](https://zhuanlan.zhihu.com/p/158468104)
+对于spring来说，其bean的生命周期可以分为以下几个部分：
+1. bean的实例创建
+2. bean的属性注入
+3. bean的初始化操作
+4. bean加入到bean缓存中，可以对外提供服务
+5. bean销毁
+
+#### spring AOP 
+
 
