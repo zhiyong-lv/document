@@ -560,3 +560,453 @@ beanFactory.registerScope("thread", threadScope);
 
 > 需要注意的是，对一个 `FactoryBean` 的bean而言，如果加了 `<aop:scoped-proxy/>` 属性，那么实际上只有 `FactoryBean` 是这个定义的Scope，而非这个 `FactoryBean` 通过 `getObject` 方法创建的对象属于这个Scope。
 
+## 定制化一个Bean 
+Spring提供了一些接口来定义bean的行为。
+- Lifecycle Callbacks
+- ApplicationContextAware 和 BeanNameAware
+- 其他的 Aware 接口
+
+### Lifecycle Callbacks
+可以通过实现 `InitializingBean` 和 `DisposableBean` 接口和容器 bean 的生命周期的管理相交互。对于前者，容器调用 `afterPropertiesSet()`。
+对于后者，容器调用 `destroy()`。
+
+> 目前来说，`@PostConstruct` 和 `@PreDestroy` 是接收lifecycle回调的最佳方案。因为这两个接口不会与Spring耦合。
+
+在Spring内部，这些LifeCycle的回调处理都是通过 `BeanPostProcessor` 来实现的。除了 `BeanPostProcessor` 接口之外，Spring内部的bean有些也实现了 `Lifecycle` 接口。这样，这些接口也会加入到容器的启动和关闭流程。
+
+#### 默认的初始化和销毁函数
+Spring可以针对每个bean都单独指定它的初始化和销毁方法，也可以统一的设置它的初始化和销毁方法。
+如果设置了统一的初始化方法和销毁方法后，也可以再对某一个bean单独指定它的初始化和销毁方法。
+这时，后面单独设置的初始化方法和销毁方法会覆盖之前的统一设置的方法。
+
+Spring会确保对在设置了所有的依赖bean后，马上调用相应的初始化和销毁方法。如果使用了AOP，那么这个时候初始化的还是bean本身，而不是代理类。
+
+#### 结合使用多种LifeCycle机制
+Spring提供了多种的LifeCycle机制
+- 继承 `InitializingBean` 和 `DisposableBean` 接口
+- xml中指定 `init` 和 `destroy` 方法
+- 使用 `@PostConstruct` 和 `@PreDestroy` 注解
+
+如果多种方式同时提供，那么Spring会将这些相同功能的方法结合起来。如果初始化或者销毁的方法定义了相同的名字，那么只会执行一次。
+如果指定的名字不同，则按照Spring规定的顺序依次执行。
+初始化方法的执行顺序:
+- `@PostConstruct`
+- 继承 `InitializingBean` 接口实现的 `afterPropertiesSet()`
+- xml 配置指定的 `init()` 方法
+
+销毁方法的执行顺序：
+- `@PreDestroy`
+- 继承 `DisposableBean` 接口实现的 `destroy()`
+- xml 配置指定的 `destroy()` 方法
+
+#### Spring的启动和关闭回调
+对于有自己启动和关闭需求的bean，spring提供了 `LifeCycle` 接口。比如需要启动时，创建自己的线程池，关闭时先关闭这些线程池。
+```java
+public interface Lifecycle {
+
+    void start();
+
+    void stop();
+
+    boolean isRunning();
+}
+```
+
+因为任何bean都可以定义自己的 `LifeCycle` 接口，所以 `ApplicationContext` 会在收到 `startup` 或者 `shutdown` 后，通过 `LifecycleProcessor` 对这些实现了 `LifeCycle` 的 `bean` 进行调用。
+```java
+public interface LifecycleProcessor extends Lifecycle {
+
+    void onRefresh();
+
+    void onClose();
+}
+```
+
+需要注意的是，`LifecycleProcessor`继承了 `LifeCycle` 接口。同时也对 `refresh` 和 `close` 事件进行了扩展。
+一般情况下，每个实现了接口的 `bean` 都会先调用 `stop` 然后再调用 `destroy`。但 `Spring` 不能保证 `stop` 一定在 `destroy` 之前调用。
+当进行 `hot refresh context` 或者尝试终止 `refresh` 的时候，只会调用 `destroy` 方法。
+
+当存在多个继承了 `LifeCycle` 接口的 `bean` 时，它们之间的顺序主要是依靠它们之间的相互依赖关系决定的。如果一个 `bean` 依赖与其他的 `bean` 。
+那么它会在依赖的 `bean` 完成初始化后再进行初始化，在依赖的 `bean` 进行销毁前执行销毁方法。
+但在任何时候，想通过依赖关系知道这些 `bean` 的执行顺序是不可能。如果要想精确的指定它们的执行顺序，那么需要实现下面的接口。
+```java
+public interface Phased {
+
+    int getPhase();
+}
+
+public interface SmartLifecycle extends Lifecycle, Phased {
+
+    boolean isAutoStartup();
+
+    void stop(Runnable callback);
+}
+```
+
+可以看到，`SmartLifecycle` 接口继承了 `Phased` 接口。所以可以通过 `int getPhase()` 方法返回的整数来判断执行的顺序。
+当进行初始化操作的时候，返回的值越小就会越早执行。相反的，当执行销毁操作的时候，值越大则会越早执行。
+`Spring` 容器中默认的实现了 `LifeCycle` 接口的 `bean`，它们的 `phase` 值一般都是默认值0。
+所以，如果将自定义的 `phase` 值设置为负整数，那么这个 `bean` 会在默认的初始化操作之前进行初始化，在默认的销毁操作之后进行销毁。
+如果将自定义的 `phase` 值设置为正整数，那么这个 `bean` 会在默认的初始化操作之后进行初始化，在默认的销毁操作之前进行销毁。
+
+`SmartLifecycle` 接口的 `stop` 方法接收一个 `Runnable` 的参数。这样就会在销毁操作完成后，调用这个方法。这样是为了支持异步 `stop` 操作。
+Spring 中的 `DefaultLifecycleProcessor` 会等待所有的 Phased 接口实现执行这个回调函数完成，但会有一个30秒的超时时间。
+当然，这个超时时间是可以修改的。
+
+正如前面所提到的，这个 `LifecycleProcessor` 接口同样定义了 `refreshing` 和 `closing` 操作的回调函数。
+对于后者来说，当进行 `stop` 操作的时候会调用，但当 `context` 关闭的时候也会进行。
+对于 refresh 操作，就涉及到 `LifecycleProcessor` 接口的另外一个方法 `isAutoStartup()` 了。
+当所有的 bean 都已经完成实例化和初始化后再进行 refresh 的时候，会调用这个 `refresh` 接口。
+这时，默认的处理器会检查所有的 `SmartLifecycle` 的 `isAutoStartup()` 返回值。
+如果为0，那么就会直接启动，而不会等待调用 `start` 方法。对于标准的 `Spring Context` 来说，`start` 操作不会自动触发。
+
+#### Spring的非web应用如何优雅的关闭
+如果你的应用不是网络服务器应用，那么需要手工注册一个 `hook` ，才能让 `Spring` 容器优雅的关闭。
+
+```java
+import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+
+public final class Boot {
+
+    public static void main(final String[] args) throws Exception {
+        ConfigurableApplicationContext ctx = new ClassPathXmlApplicationContext("beans.xml");
+
+        // add a shutdown hook for the above context...
+        ctx.registerShutdownHook();
+
+        // app runs here...
+
+        // main method exits, hook is called prior to the app shutting down...
+    }
+}
+```
+
+### `ApplicationContextAware` 和 `BeanNameAware`
+`ApplicationContextAware` 接口的定义如下。实现了这个接口的类，可以使用传入的 `ApplicationContext`。
+通过 `ApplicationContext`，可以回去其他的 `beans`，也可以发送 `events`，获取 `properties` 已经使用 `messageSource` 进行国际化相关的操作。
+由于这样会导致代码和 `Spring` 的依赖，但这种方式并不是建议使用的方式。可以通过 `@AutoWare` 将 `ApplicationContext` 作为 `bean` 的属性传入后使用。
+```java
+public interface ApplicationContextAware {
+
+    void setApplicationContext(ApplicationContext applicationContext) throws BeansException;
+}
+```
+
+`BeanNameAware` 接口定义如下。可以使用传入的 `beanName`。
+```java
+public interface BeanNameAware {
+
+    void setBeanName(String name) throws BeansException;
+}
+```
+
+请注意，这些 `aware` 接口都是在依赖注入后，初始化操作之前进行的。也在 `InitializingBean.afterPropertiesSet()` 之前进行。
+
+### 其他的 `Aware` 接口
+除了上面介绍过的两个 `Aware` 接口之外，`Spring` 还提供了很多其他的 `Aware` 接口。如下表所示。
+
+| Name                           | Injected Dependency                                                                                     | Explained in…                                          |
+|--------------------------------|---------------------------------------------------------------------------------------------------------|--------------------------------------------------------|
+| ApplicationContextAware        | Declaring ApplicationContext.                                                                           | ApplicationContextAware and BeanNameAware              |
+| ApplicationEventPublisherAware | Event publisher of the enclosing ApplicationContext.                                                    | Additional Capabilities of the ApplicationContext      |
+| BeanClassLoaderAware           | Class loader used to load the bean classes.                                                             | Instantiating Beans                                    |
+| BeanFactoryAware               | Declaring BeanFactory.                                                                                  | The BeanFactory API                                    |
+| BeanNameAware                  | Name of the declaring bean.                                                                             | ApplicationContextAware and BeanNameAware              |
+| LoadTimeWeaverAware            | Defined weaver for processing class definition at load time.                                            | Load-time Weaving with AspectJ in the Spring Framework |
+| MessageSourceAware             | Configured strategy for resolving messages (with support for parametrization and internationalization). | Additional Capabilities of the ApplicationContext      |
+| NotificationPublisherAware     | Spring JMX notification publisher.                                                                      | Notifications                                          |
+| ResourceLoaderAware            | Configured loader for low-level access to resources.                                                    | Resources                                              |
+| ServletConfigAware             | Current ServletConfig the container runs in. Valid only in a web-aware Spring ApplicationContext.       | Spring MVC                                             |
+| ServletContextAware            | Current ServletContext the container runs in. Valid only in a web-aware Spring ApplicationContext.      | Spring MVC                                             |
+
+
+## Bean Definition Inheritance
+`Spring` 容器的 `bean` 可以根据 `parent bean` 的配置进行创建。
+
+## Container Extension Points 容器扩展点
+Typically, an application developer does not need to subclass ApplicationContext implementation classes. Instead, the Spring IoC container can be extended by plugging in implementations of special integration interfaces. The next few sections describe these integration interfaces.
+一般来说，开发人员不需要创建 `ApplicationContext` 的子类。`Spring IoC` 容器可以通过实现了特殊接口的插件来进行扩展。
+
+### Customizing Beans by Using a BeanPostProcessor 使用 `BeanPostProcessor` 自定义 Beans
+`BeanPostProcessor` 接口定义了 `callback` 的方法。利用这些方法，你可以提供自己的实例化 bean 的逻辑，依赖解析逻辑和其他部分的逻辑。
+这些实现会自动覆盖原有的实现方法。
+
+如果你想实现的自定义逻辑在 bean 实例化、配置及初始化之后，你也可以插入一个或者多个 `BeanPostProcessor` 接口的实现。
+如果配置了多个 `BeanPostProcessor` 接口的实现，你可以通过 `order` 属性来控制这些实现的执行顺序。
+
+如果要自己实现 `BeanPostProcessor` 接口的类的话，那么一般也要考虑实现 `Order` 接口。
+
+> `BeanPostProcessor` 一般是在 `Spring` 容器实例化 `bean` 之后进行响应的处理。
+> 对于 `BeanPostProcessor` 来说，它的作用域只限于所在的容器，其他容器定义的 `BeanPostProcessor` 对本容器中的 `bean` 不起作用。
+> `BeanPostProcessor` 并不会修改 `bean` 的 `definition`，如果要修改相关配置，那么需要使用 `BeanFactoryPostProcessor`
+
+`org.springframework.beans.factory.config.BeanPostProcessor` 接口有两个方法，一个会在初始化之前执行，另外一个是在初始化之后执行。
+初始化之前指的是在自定义的初始化方法之前和 `InitializingBean.afterPropertiesSet()` 方法之前。
+一般来说，这个接口经常被 `AOP` 来使用。
+
+`ApplicationContext` 会自动扫描所有的 `BeanPostProcessor`，然后运行它们。
+
+`BeanPostProcessor` 的 bean 会被容器区别对待。在 `ApplicationContext` 的 `startup` 阶段，所有的 `BeanPostProcessor` 类型的 `bean` 和它们的直接依赖，都会被先实例化。
+之后，所有的 `BeanPostProcessor` 类型的 `beans` 都会被加入到一个有序的队列中，用于后续的 `beans` 的创建。
+因为 AOP 也是通过 `BeanPostProcessor` 来实现的，所以所有的 `BeanPostProcessor` 类型的 `bean` 和它们直接依赖的 `bean` 都不能使用 AOP 代理。
+
+如果 `BeanPostProcessor` 中使用了 `@Resource` 自动引入了一些其他的bean。这些 bean 很有可能会导入一些不是你需要的类型。
+
+### Customizing Configuration Metadata with a BeanFactoryPostProcessor 使用 `BeanFactoryPostProcessor` 自定义配置元数据
+`org.springframework.beans.factory.config.BeanFactoryPostProcessor` 在语义上和 `BeanPostProcessor` 类似，区别在于它是在任何 bean 创建之前，操作或者修改 `bean definition`。
+
+### Customizing Instantiation Logic with a FactoryBean 使用 `FactoryBean` 自定义实例化逻辑
+通过 `org.springframework.beans.factory.FactoryBean` 接口实现的 `bean` 本身就是工厂 `bean`。
+
+如果某个 bean 的初始化流程很复杂，不容易写在其他的地方，你可以自定义这个 bean 的初始化函数，以 `FactoryBean` 的方式加入到容器中。
+这个接口提供了三个方法：
+- `T getObject()`： 获取这个工厂类实际创建的对象。
+- `boolean isSingleton()`： 返回创建的 bean 是单例还是其他的 `Scope`
+- `Class<?> getObjectType()`： 返回创建的对象的类型。如果还不知道具体的类型就返回 `null`，
+
+如果要访问 `FactoryBean` 对象本身，需要在调用 `getBean` 方法时，在传入的 `beanName` 前面加上 `&` 符号。
+
+## 基于注解的容器配置
+基于注解的注入一般在基于 `xml` 注入之前，所以，如果 `xml` 和注解中都定义了 `bean` 的配置，那么会以 `xml` 中的配置为准。
+
+和其他的 bean 一样，你可以把 post-processor 当做独立的 bean 进行注入。但它们也可以包含在下面的 xml 配置中。注意要加上 context 的名字空间。
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:context="http://www.springframework.org/schema/context"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans
+        https://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/context
+        https://www.springframework.org/schema/context/spring-context.xsd">
+
+    <context:annotation-config/>
+
+</beans>
+```
+
+`<context:annotation-config/>` 隐式的注册了下面的 post-BeanPostProcessor。
+`Spring` 容器只在定义了`<context:annotation-config/>`的应用上下文中自动扫描注解。例如如果将这个标签放到 `WebApplicationContext` 中，那么只有 `Controller` 注解会被扫描。
+- ConfigurationClassPostProcessor
+- AutowiredAnnotationBeanPostProcessor
+- CommonAnnotationBeanPostProcessor
+- PersistenceAnnotationBeanPostProcessor
+- EventListenerMethodProcessor
+
+### @Required
+这个注解应用在注入属性的 `setter` 方法。如果在 DI 阶段，没有注入成功，那么会抛出一个异常。
+如果要使用的话，需要配合 `RequiredAnnotationBeanPostProcessor` 一起使用。 
+**但5.1版本之后已经过期了**。
+
+### @Autowired
+1. 构造函数上
+2. setter 方法上
+3. 带有参数的函数上，会将参数需要的 bean 注入。
+4. 属性上
+
+默认的所有的 `@Autowired` 的方法和属性都是必须的。但对于不是必须的属性或者方法，可以使用下面的方法，将它的 `requried` 设置为 `false`，
+```java
+public class SimpleMovieLister {
+
+    private MovieFinder movieFinder;
+
+    @Autowired(required = false)
+    public void setMovieFinder(MovieFinder movieFinder) {
+        this.movieFinder = movieFinder;
+    }
+
+    // ...
+}
+```
+
+对于一个非必须的方法，如果它的依赖无法找到（对于多参数的，如果其中一个依赖没有找到），那么根本不会被调用到。
+对于非必须的属性，容器在无法完成匹配的情况下，不会对其进行进行依赖注入。
+
+对于构造函数或者工厂方法上的 `@Autowired` 而言，它的行为有所不同。这是因为 Spring 的构造器解析算法默认的可以解析多个构造函数。
+所以对于这种的 `required` 属性就有了一些不一样的含义。除了只有单个构造函数以外的情况，构造函数和工厂方法所需要的依赖都实际上是默认需要的。
+这就产生了一个通用的设计模式，这种设计模式只声明一个多参数的构造函数。例如只声明一个单独的 `public` 的构造函数，却不需要使用 `@Autowired` 注解。
+
+> 只有一个构造函数的时候，如果使用了 `@Autowired`，那么它的 `required` 默认就是 true。
+> 如果有多个构造函数，如果使用了 `@Autowired`，那么它的 `required` 应该设置为 false。
+> 这时，容器会自动搜寻相关的构造函数，选择一个可以使用参数最多的进行实例化。如果这些标注了 `@Autowired` 无法满足，那么就查看是否有默认的或者primary的构造函数
+> 同样的，如果一个类中能有多个构造函数，但没有一个使用了 `@Autowired`，那么选择默认的或者primary的构造函数进行实例化。
+> 如果只有一个构造函数，那么不论是否使用了 `@Autowired` 注解，它都会被使用。
+> 使用 `@Autowired` 注解的构造函数可以不是 `public` 的。
+> 
+
+另外，你也可以使用 java 8 中的 Optional 接口来表示注入的类是可选的。
+```java
+public class SimpleMovieLister {
+
+    @Autowired
+    public void setMovieFinder(Optional<MovieFinder> movieFinder) {
+        ...
+    }
+}
+```
+
+在Spring 5.0 以后，你也可以使用 `javax.annotation.Nullable` 来表示注入的依赖是可选的
+```java
+public class SimpleMovieLister {
+
+    @Autowired
+    public void setMovieFinder(@Nullable MovieFinder movieFinder) {
+        ...
+    }
+}
+```
+
+### 使用 `@Primary` 调节注解自动注入
+通过类型注入的时候，有可能会出现多个合格的候选bean，这时可以使用 `@Primary` 来表示优先注入哪个。
+例如下面的代码中，如果按照类型注入，那么优先注入 primary 的 bean。
+```java
+@Configuration
+public class MovieConfiguration {
+
+    @Bean
+    @Primary
+    public MovieCatalog firstMovieCatalog() { ... }
+
+    @Bean
+    public MovieCatalog secondMovieCatalog() { ... }
+
+    // ...
+}
+```
+
+### 使用 `Qualifiers` 调节注解的自动注入
+使用 `@Qualifier` 可以更加细粒度的控制注入。你可以将 `@Qualifier` 的值和特定的参数关联起来，以缩小查找的范围。
+
+当使用了 `@Qualifier` 后，对应的 qualifier 值就赋值给了这个bean，当使用了 `@Autowired` 注解注入的依赖也有这个 `@Qualifier` 的时候，
+Spring 会按照这个注解要求的 qualifier 值去找同类型（或者子类的）bean。
+
+对于集合类型的自动注入来说，Spring 容器会把相同的 `@Qualifier` 标注的对象都放到这个集合里面。从这点也说明，qualifier 的值不必是唯一的。
+另外，如果没有使用 `@Qualifier` 注解的话，那么 Spring 可以根据这个自动注入的属性的名字来查找。
+
+也就是说，如果想以名字为准进行依赖注入，优先使用 `@Resource`。
+而 `@Autowired` 有不同的语义。当通过 type 选择了 candidates 之后，再通过 qualifier 在这些 candidates 之间进行选择。
+
+对于本身就本定义成集合，映射或者数组类型的 bean 来说，使用 @Resource 更加合适。
+
+对于 `@Autowired` 来说，还要考虑自引用的问题。注入自己本身的引用是一个漏洞。通常情况下，对其他的非自身的引用的注入的优先级比较高。
+这时，如果有其他类型相同的 bean，那么优先会将这些 bean 注入进来。在实践中，一般只有最终不得已的情况才使用自引用。
+这种情况下，建议将收到影响的方法分解出来，使用代理的方式进行调用。
+当然，你也可以使用 `@Resource` 注解引用这个 `bean` 的唯一名字来实现自引用。
+
+> 在 @Configuration 注解的类中使用本 Configuration 生成的 bean 也是一种类型的自引用。当出现这种情况的时候，也会优先注入其他 Configuration 创建的 bean。
+> 为了避免这种情况，可以考虑使用 static 方法声明 bean， 或者在构造方法的签名里使用。
+
+@Autowired 可以使用在成员变量，构造方法，setter方法上，而 @Resource 只能使用在成员变量，或者只有一个变量的 setter 方法上。
+
+也可以自定义 `@Qualifier` 注解，并通过自定的注解选择响应的 bean。
+
+### 在自动注入的 Qualifier 中使用泛型
+对于 `@Qualifier` ，你也可以使用泛型来精确匹配。
+
+```java
+@Configuration
+public class MyConfiguration {
+
+    @Bean
+    public StringStore stringStore() {
+        return new StringStore();
+    }
+
+    @Bean
+    public IntegerStore integerStore() {
+        return new IntegerStore();
+    }
+}
+```
+
+### 使用 CustomAutowireConfigurer
+`CustomAutowireConfigurer` 是 `BeanFactoryPostProcessor` 的实现类。他可以让你注册自己的 qualifier 注解类型。
+即使他们根本没有使用 @Autowired 的情况下。
+
+```xml
+<bean id="customAutowireConfigurer"
+        class="org.springframework.beans.factory.annotation.CustomAutowireConfigurer">
+    <property name="customQualifierTypes">
+        <set>
+            <value>example.CustomQualifier</value>
+        </set>
+    </property>
+</bean>
+```
+
+`AutowireCandidateResolver` 决定 autowired 候选的顺序如下：
+- 每个bean中定义的 autowire-candidate
+- beans 中统一定义的 default-autowire-candidates
+- @Qualifier 注释和任何使用 CustomAutowireConfigurer 注册的自定义注解。
+
+### 使用 @Resource 进行注入
+支持在 field 和 bean 属性的 setter 方法上使用 @Resource 注解。一般是通过名字来注入的。
+
+如果没有明确的制定名字，那么就使用 filed 的名字或者 method 的名字作为要注入的 bean 的名字来查找。
+如果没有找到明确的名字匹配的 bean，那么就按照 autowired 的处理方式，按照类型进行查找。
+
+### 使用 @Value
+@Value 的典型应用是的用来注入外部属性的注解。
+
+```java
+@Component
+public class MovieRecommender {
+
+    private final String catalog;
+
+    public MovieRecommender(@Value("${catalog.name}") String catalog) {
+        this.catalog = catalog;
+    }
+}
+```
+
+### 使用 @PostConstruct 和 @PreDestroy
+@PostConstruct 和 @PreDestroy 也是由 CommonAnnotationBeanPostProcessor 处理的。分别提供了初始化和销毁的时候的特定处理。
+
+## 路径扫描和 Components 管理
+路径扫描和 Components 结合使用，就可以把所有的 bean 都扫描到，并将这些 bean 的 BeanDefinition 都放入到容器中。无需 xml 配置文件。
+
+
+### Component 和其他的注解
+- @Repository 注释表示一个 DAO 层的 bean。
+- @Service 表示一个服务层的 bean
+- @Controller 表示一个控制器层的 bean
+- 这三个都是 @Components 类型的子类型
+
+### 使用元注解和 Component 注解
+Spring 提供的注解可以被当做元注解，直接应用到代码中能够。这里的元注解，指的就是可以被其他的注解使用的注解。例如 Service 就使用了元注解 Componenet
+
+使用元注解定义的注解，可以重新定义元注解中的属性。
+```java
+@Target({ElementType.TYPE, ElementType.METHOD})
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+@Scope(WebApplicationContext.SCOPE_SESSION)
+public @interface SessionScope {
+
+    /**
+     * Alias for {@link Scope#proxyMode}.
+     * <p>Defaults to {@link ScopedProxyMode#TARGET_CLASS}.
+     */
+    @AliasFor(annotation = Scope.class)
+    ScopedProxyMode proxyMode() default ScopedProxyMode.TARGET_CLASS;
+
+}
+```
+
+### 自动扫描并注册 BeanDefinition 
+`Spring` 自动扫描带有 `@Component` 注解（或者其子注解）的类，并将其 `BeanDefinition` 加入到 `BeanFactory` 中。
+
+如果要实现这一点，那么需要声明扫描的包范围
+```java
+@Configuration
+@ComponentScan(basePackages = "org.example")
+public class AppConfig  {
+    // ...
+}
+```
+
+
+
+
