@@ -3,7 +3,9 @@ package com.lzy.learning.leecode;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -11,8 +13,40 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Stack;
+import java.util.stream.Stream;
 
 public class SpiralOrderNo54 {
+    private static Stream<Arguments> provideArraysForExist() {
+        return Stream.of(
+                Arguments.of(new char[][]{new char[]{'A', 'B', 'C', 'E'}, new char[]{'S', 'F', 'C', 'S'}, new char[]{'A', 'D', 'E', 'E'}}, "ABCCED", true),
+                Arguments.of(new char[][]{new char[]{'A', 'B', 'C', 'E'}, new char[]{'S', 'F', 'C', 'S'}, new char[]{'A', 'D', 'E', 'E'}}, "ABCB", false),
+                Arguments.of(new char[][]{new char[]{'a'}}, "a", true),
+                Arguments.of(new char[][]{new char[]{'a', 'a'}}, "aaa", false)
+        );
+    }
+
+    private static Stream<Arguments> provideArraysForSortColors() {
+        return Stream.of(
+                Arguments.of(new int[]{2, 0, 2, 1, 1, 0}, new int[]{0, 0, 1, 1, 2, 2}),
+                Arguments.of(new int[]{1, 0}, new int[]{0, 1}),
+                Arguments.of(new int[]{2, 0, 1}, new int[]{0, 1, 2})
+        );
+    }
+
+    private static Stream<Arguments> provideArraysForSearchMatrix() {
+        return Stream.of(
+                Arguments.of(new int[][]{{1, 3, 5, 7}, {10, 11, 16, 20}, {23, 30, 34, 60}}, 3, true),
+                Arguments.of(new int[][]{{1, 3, 5, 7}, {10, 11, 16, 20}, {23, 30, 34, 60}}, 13, false)
+        );
+    }
+
+    private static Stream<Arguments> provideArraysForSetZeroesTest() {
+        return Stream.of(
+                Arguments.of(new int[][]{{1, 1, 1}, {1, 0, 1}, {1, 1, 1}}, new int[][]{{1, 0, 1}, {0, 0, 0}, {1, 0, 1}}),
+                Arguments.of(new int[][]{{0, 1, 2, 0}, {3, 4, 5, 2}, {1, 3, 1, 5}}, new int[][]{{0, 0, 0, 0}, {0, 4, 5, 0}, {0, 3, 1, 0}})
+        );
+    }
+
     // @Test
     void spiralOrder() {
         int[][] matrix = new int[][]{new int[]{1, 2, 3}, new int[]{4, 5, 6}, new int[]{7, 8, 9}};
@@ -72,6 +106,393 @@ public class SpiralOrderNo54 {
     })
     void simplifyPathTest(String path, String expected) {
         Assertions.assertEquals(expected, new Solution71().simplifyPath(path));
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "'','',0",
+            "'a','a',0",
+            "'aa','a',1",
+            "'a','ab',1",
+            "'horse','ros',3",
+            "'intention','execution',5",
+    })
+    void simplifyPathTest(String word1, String word2, int expected) {
+        Assertions.assertEquals(expected, new Solution72().minDistance(word1, word2));
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideArraysForSetZeroesTest")
+    void setZeroesTest(int[][] matrix, int[][] expected) {
+        new Solution73().setZeroes(matrix);
+        Assertions.assertEquals(Arrays.deepToString(expected), Arrays.deepToString(matrix));
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideArraysForSearchMatrix")
+    void searchMatrixTest(int[][] matrix, int target, boolean expected) {
+        Assertions.assertEquals(expected, new Solution74().searchMatrix(matrix, target));
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideArraysForSortColors")
+    void sortColorsTest(int[] nums, int[] expected) {
+        new Solution75().sortColors(nums);
+        Assertions.assertArrayEquals(expected, nums);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "ADOBECODEBANC,ABC,BANC",
+            "a,a,a",
+            "a,aa,''",
+    })
+    void minWindowTest(String s, String t, String expected) {
+        Assertions.assertEquals(expected, new Solution76().minWindow(s, t));
+    }
+
+    @Test
+    void combineTest() {
+        System.out.printf("%s\n", new Solution77().combine(4, 2));
+    }
+
+    @Test
+    void subsetsTest() {
+        System.out.printf("%s\n", new Solution78().subsets(new int[]{1, 2, 3}));
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideArraysForExist")
+    void existTest(char[][] board, String word, boolean expected) {
+        Assertions.assertEquals(expected, new Solution79().exist(board, word));
+    }
+}
+
+
+class Solution79 {
+    public boolean exist(char[][] board, String word) {
+        final int rows = board.length;
+        final int cols = board[0].length;
+        int[][] used = new int[rows][cols];
+        for (int row = 0; row < rows; row++) {
+            for (int col = 0; col < cols; col++) {
+                if (backTrace(board, word, row, col, 0, used)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean backTrace(char[][] board, String word, int row, int col, int wordIdx, int[][] used) {
+        if (board[row][col] == word.charAt(wordIdx)) {
+            used[row][col] = 1;
+            final int nextWordIdx = wordIdx + 1;
+            if (nextWordIdx >= word.length()) {
+                return true;
+            }
+            for (int[] position : new int[][]{new int[]{row - 1, col}, new int[]{row + 1, col}, new int[]{row, col - 1}, new int[]{row, col + 1}}) {
+                final int nextRow = position[0];
+                final int nextCol = position[1];
+                if (nextRow >= 0 && nextRow < board.length && nextCol >= 0 && nextCol < board[0].length && used[nextRow][nextCol] == 0) {
+                    used[nextRow][nextCol] = 1;
+                    if (backTrace(board, word, nextRow, nextCol, nextWordIdx, used)) {
+                        return true;
+                    }
+                    used[nextRow][nextCol] = 0;
+                }
+            }
+            used[row][col] = 0;
+        }
+
+        return false;
+    }
+}
+
+class Solution78 {
+    public List<List<Integer>> subsets(int[] nums) {
+        List<List<Integer>> result = new ArrayList<>();
+        result.add(new ArrayList<>());
+        List<Integer> list = new ArrayList<>();
+        backTrace(result, list, 0, nums);
+        return result;
+    }
+
+    private void backTrace(List<List<Integer>> result, List<Integer> list, int from, int[] nums) {
+        if (from == nums.length) {
+            return;
+        }
+
+        for (int i = from; i < nums.length; i++) {
+            final Integer num = nums[i];
+            list.add(num);
+            result.add(new ArrayList<>(list));
+            backTrace(result, list, i + 1, nums);
+            list.remove(num);
+        }
+    }
+}
+
+class Solution77 {
+    public List<List<Integer>> combine(int n, int k) {
+        List<List<Integer>> result = new ArrayList<>();
+        List<Integer> list = new ArrayList<>();
+        int flag = 0;
+        backTrace(result, list, n, 0, k);
+        return result;
+    }
+
+    private void backTrace(List<List<Integer>> result, List<Integer> list, int n, int from, int k) {
+        if (k == 0) {
+            result.add(new ArrayList<>(list));
+            return;
+        }
+
+        if (n - from < k) {
+            return;
+        }
+
+        for (int i = from; i < n; i++) {
+            list.add(i + 1);
+            backTrace(result, list, n, i + 1, k - 1);
+            list.remove(list.size() - 1);
+        }
+    }
+
+    private void backTrace(List<List<Integer>> result, List<Integer> list, int flag, int n, int from, int k) {
+        for (int i = from; i < n; i++) {
+            if ((flag & 1 << i) == 0) {
+                list.add(i + 1);
+                int nextK = k - 1;
+                if (nextK > 0) {
+                    backTrace(result, list, (flag | (1 << i)), n, i, k - 1);
+                } else {
+                    result.add(new ArrayList<>(list));
+                }
+                list.remove(Integer.valueOf(i + 1));
+            }
+        }
+    }
+}
+
+class Solution76 {
+    public String minWindow(String s, String t) {
+        if (t.length() > s.length()) {
+            return "";
+        }
+
+        int[] targetCharCounts = new int[52];
+        long targetFlag = 0;
+        int[] matchCharCounts = new int[52];
+
+        for (char c : t.toCharArray()) {
+            targetFlag = updateRecode(c, targetCharCounts, targetFlag);
+        }
+
+        int lastStart = -1, lastEnd = -1;
+        int start = 0, end = 0;
+        long matchFlag = targetFlag;
+        while (end < s.length()) {
+            char c = s.charAt(end);
+            matchFlag = updateMatchRecode(c, targetCharCounts, matchCharCounts, matchFlag, targetFlag, true);
+            if (matchFlag == 0) {
+                do {
+                    c = s.charAt(start++);
+                    matchFlag = updateMatchRecode(c, targetCharCounts, matchCharCounts, matchFlag, targetFlag, false);
+                } while (matchFlag == 0);
+                if (lastStart == -1) {
+                    lastStart = start - 1;
+                    lastEnd = end;
+                } else if (end - start + 1 < lastEnd - lastStart) {
+                    lastStart = start - 1;
+                    lastEnd = end;
+                }
+            }
+            end++;
+        }
+
+        return (lastStart != -1) ? s.substring(lastStart, lastEnd + 1) : "";
+    }
+
+    private long updateRecode(char c, int[] targetCharCounts, long flag) {
+        int lowerCaseIdx = c - 'a';
+        int upperCaseIdx = c - 'A';
+        if (lowerCaseIdx >= 0 && lowerCaseIdx < 26) {
+            targetCharCounts[lowerCaseIdx] += 1;
+            return flag | 1 << lowerCaseIdx;
+        }
+        if (upperCaseIdx >= 0 && upperCaseIdx < 26) {
+            targetCharCounts[upperCaseIdx + 26] += 1;
+            return flag | 1L << (upperCaseIdx + 26);
+        }
+        throw new IllegalArgumentException();
+    }
+
+    private long updateMatchRecode(char c, int[] targetCharCounts, int[] matchCharCounts, long matchFlag, long targetFlag, boolean plus) {
+        int lowerCaseIdx = c - 'a';
+        int upperCaseIdx = c - 'A';
+        if (lowerCaseIdx >= 0 && lowerCaseIdx < 26 && (targetFlag & (1 << lowerCaseIdx)) > 0) {
+            matchCharCounts[lowerCaseIdx] += plus ? 1 : -1;
+            return matchCharCounts[lowerCaseIdx] >= targetCharCounts[lowerCaseIdx] ? matchFlag & ~(1 << lowerCaseIdx) : matchFlag | (1 << lowerCaseIdx);
+        }
+        if (upperCaseIdx >= 0 && upperCaseIdx < 26 && (targetFlag & (1L << (upperCaseIdx + 26))) > 0) {
+            matchCharCounts[upperCaseIdx + 26] += plus ? 1 : -1;
+            return matchCharCounts[upperCaseIdx + 26] >= targetCharCounts[upperCaseIdx + 26] ? matchFlag & ~(1L << (upperCaseIdx + 26)) : matchFlag | (1L << (upperCaseIdx + 26));
+        }
+        return matchFlag;
+    }
+}
+
+class Solution75 {
+    public void sortColors(int[] nums) {
+        final int redVal = 0;
+        final int whiteVal = 1;
+        final int blueVal = 2;
+        Integer lastWhiteIdx = null;
+
+        int leftIdx = 0;
+        int rightIdx = nums.length;
+
+        while (leftIdx < rightIdx) {
+            if (nums[leftIdx] == blueVal) {
+                while (rightIdx - 1 > leftIdx && nums[rightIdx - 1] == blueVal) {
+                    rightIdx--;
+                }
+                if (rightIdx > leftIdx) {
+                    nums[leftIdx] = nums[rightIdx - 1];
+                    nums[rightIdx - 1] = blueVal;
+                }
+                rightIdx--;
+            } else if (nums[leftIdx] == whiteVal) {
+                if (Objects.isNull(lastWhiteIdx)) {
+                    lastWhiteIdx = leftIdx;
+                }
+                leftIdx++;
+            } else {
+                if (Objects.nonNull(lastWhiteIdx)) {
+                    final int lastIdx = lastWhiteIdx;
+                    nums[lastIdx] = redVal;
+                    nums[leftIdx] = whiteVal;
+                    lastWhiteIdx = lastIdx + 1;
+                }
+                leftIdx++;
+            }
+        }
+    }
+}
+
+class Solution74 {
+    public boolean searchMatrix(int[][] matrix, int target) {
+        final int rows = matrix.length;
+        final int cols = matrix[0].length;
+        final int totalCount = rows * cols;
+
+        for (int min = 0, max = totalCount; min < max; ) {
+            int mid = (min + max) / 2;
+            final int col = mid % cols;
+            final int row = mid / cols;
+            if (matrix[row][col] == target) {
+                return true;
+            } else if (target < matrix[row][col]) {
+                max = mid;
+            } else {
+                min = mid + 1;
+            }
+        }
+        return false;
+    }
+}
+
+
+class Solution73 {
+    public void setZeroes(int[][] matrix) {
+        final int rows = matrix.length;
+        final int cols = matrix[0].length;
+        final int totalCount = rows * cols;
+        setZeroes(matrix, 0, rows, cols, totalCount);
+    }
+
+    private void setZeroes(int[][] matrix, int idx, int rows, int cols, int totalCount) {
+        while (idx < totalCount) {
+            int row = idx / cols;
+            int col = idx % cols;
+
+            if (0 == matrix[row][col]) {
+                setZeroes(matrix, idx + 1, rows, cols, totalCount);
+                Arrays.fill(matrix[row], 0);
+                for (int rowIdx = 0; rowIdx < matrix.length; rowIdx++) {
+                    matrix[rowIdx][col] = 0;
+                }
+                break;
+            } else {
+                idx++;
+            }
+        }
+    }
+}
+
+class Solution72 {
+    public int minDistance(String word1, String word2) {
+        final int word1Length = word1.length();
+        final int word2Length = word2.length();
+        if (0 == word1Length || 0 == word2Length) {
+            return Math.max(word1Length, word2Length);
+        }
+
+        final int[][] state = new int[word1Length][word2Length];
+        for (int i = 0; i < word1Length; i++) {
+            for (int j = 0; j < word2Length; j++) {
+                state[i][j] = -1;
+            }
+        }
+        return dp2(word1, word1Length - 1, word2, word2Length - 1, state);
+        // dp(word1, 0, word2, 0, state);
+        // return state[word1Length - 1][word2Length - 1];
+    }
+
+    private int dp2(String word1, int idx1, String word2, int idx2, int[][] state) {
+        if (-1 != state[idx1][idx2]) {
+            return state[idx1][idx2];
+        }
+
+        final boolean charEqual = word1.charAt(idx1) == word2.charAt(idx2);
+        if (0 == idx1 && 0 == idx2) {
+            state[idx1][idx2] = charEqual ? 0 : 1;
+        } else if (0 == idx1) {
+            state[idx1][idx2] = charEqual ? idx2 : dp2(word1, idx1, word2, idx2 - 1, state) + 1;
+        } else if (0 == idx2) {
+            state[idx1][idx2] = charEqual ? idx1 : dp2(word1, idx1 - 1, word2, idx2, state) + 1;
+        } else if (charEqual) {
+            state[idx1][idx2] = dp2(word1, idx1 - 1, word2, idx2 - 1, state);
+        } else {
+            state[idx1][idx2] = Math.min(Math.min(dp2(word1, idx1 - 1, word2, idx2, state), dp2(word1, idx1, word2, idx2 - 1, state)),
+                    dp2(word1, idx1 - 1, word2, idx2 - 1, state)) + 1;
+        }
+
+        return state[idx1][idx2];
+    }
+
+    private void dp(String word1, int idx1, String word2, int idx2, int[][] state) {
+        if (idx1 >= word1.length() || idx2 >= word2.length()) {
+            return;
+        }
+
+        final boolean charEqual = word1.charAt(idx1) == word2.charAt(idx2);
+        if (0 == idx1 && 0 == idx2) {
+            state[idx1][idx2] = charEqual ? 0 : 1;
+        } else if (0 == idx1) {
+            state[idx1][idx2] = charEqual ? idx2 : state[idx1][idx2 - 1] + 1;
+        } else if (0 == idx2) {
+            state[idx1][idx2] = charEqual ? idx1 : state[idx1 - 1][idx2] + 1;
+        } else if (charEqual) {
+            state[idx1][idx2] = state[idx1 - 1][idx2 - 1];
+        } else {
+            state[idx1][idx2] = Math.min(Math.min(state[idx1 - 1][idx2], state[idx1][idx2 - 1]), state[idx1 - 1][idx2 - 1]) + 1;
+        }
+
+        idx2 = idx2 + (idx1 + 1) / word1.length();
+        idx1 = (idx1 + 1) % word1.length();
+        dp(word1, idx1, word2, idx2, state);
     }
 }
 
