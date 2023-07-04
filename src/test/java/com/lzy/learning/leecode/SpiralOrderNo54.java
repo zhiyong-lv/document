@@ -10,7 +10,9 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Stack;
 import java.util.stream.Stream;
@@ -166,6 +168,215 @@ public class SpiralOrderNo54 {
     void existTest(char[][] board, String word, boolean expected) {
         Assertions.assertEquals(expected, new Solution79().exist(board, word));
     }
+
+    @ParameterizedTest
+    @CsvSource({
+            "'2,5,6,0,0,1,2',0,true",
+            "'2,5,6,0,0,1,2',1,true",
+            "'2,5,6,0,0,1,2',2,true",
+            "'2,5,6,0,0,1,2',3,false",
+            "'2,5,6,0,0,1,2',4,false",
+            "'2,5,6,0,0,1,2',5,true",
+            "'2,5,6,0,0,1,2',6,true",
+            "'2,5,6,0,0,1,2',7,false",
+            "'1,1,1,1,1,1,1,1,1,1,1,1,1,2,1,1,1,1,1',2,true",
+            "'4,5,6,7,0,1,2',0,true",
+            "'4,5,6,7,0,1,2',5,true",
+    })
+    void testSearch(String nums, int target, boolean expected) {
+        Assertions.assertEquals(expected, new Solution81().search(Arrays.stream(nums.split(",")).mapToInt(Integer::valueOf).toArray(), target));
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            // "'1,2,3,3,4,4,5','1,2,5'",
+            "'1,1',''",
+    })
+    void deleteDuplicatesTest(String nums, String expected) {
+        ListNode head = null;
+        ListNode idx = null;
+        for (String s : nums.split(",")) {
+            if (Objects.isNull(head)) {
+                idx = head = new ListNode(Integer.parseInt(s), null);
+            } else {
+                idx.next = new ListNode(Integer.parseInt(s), null);
+                idx = idx.next;
+            }
+        }
+        ListNode newHead = new Solution82().deleteDuplicates(head);
+        StringBuilder sb = new StringBuilder();
+        while (newHead != null) {
+            sb.append(newHead.val);
+            if (newHead.next != null) {
+                sb.append(",");
+            }
+            newHead = newHead.next;
+        }
+        Assertions.assertEquals(expected, sb.toString());
+    }
+}
+
+class Solution82 {
+    public ListNode deleteDuplicates(ListNode head) {
+        ListNode preNode = null;
+        ListNode lastVal = head;
+        ListNode idx = head;
+        head = null;
+        boolean repeat = false;
+        while (idx != null) {
+            if (lastVal.val != idx.val) {
+                if (!repeat) {
+                    if (Objects.isNull(preNode)) {
+                        head = preNode = lastVal;
+                    } else {
+                        preNode.next = lastVal;
+                        preNode = lastVal;
+                    }
+                }
+                lastVal.next = null;
+                lastVal = idx;
+                repeat = false;
+            } else if (lastVal != idx) {
+                repeat = true;
+            }
+            idx = idx.next;
+        }
+        if (!repeat) {
+            if (Objects.isNull(preNode)) {
+                head = lastVal;
+            } else {
+                preNode.next = lastVal;
+            }
+        }
+        return head;
+    }
+
+    public ListNode deleteDuplicates1(ListNode head) {
+        Map<Integer, Integer> valCount = new LinkedHashMap<>();
+        while (head != null) {
+            final int val = head.val;
+            valCount.compute(val, (k, v) -> {
+                if (Objects.isNull(v)) {
+                    return 1;
+                } else {
+                    return v + 1;
+                }
+            });
+            head = head.next;
+        }
+
+        ListNode newHead = null;
+        ListNode idx = null;
+        for (Map.Entry<Integer, Integer> e : valCount.entrySet()) {
+            if (e.getValue() == 1) {
+                if (Objects.isNull(newHead)) {
+                    idx = newHead = new ListNode(e.getKey(), null);
+                } else {
+                    idx.next = new ListNode(e.getKey(), null);
+                    idx = idx.next;
+                }
+            }
+        }
+        return newHead;
+    }
+}
+
+class Solution83 {
+    public ListNode deleteDuplicates(ListNode head) {
+        ListNode lastVal = head;
+        ListNode idx = head;
+        while (idx != null) {
+            if (lastVal.val != idx.val) {
+                lastVal.next = idx;
+                lastVal = idx;
+            } else if (lastVal != idx) {
+                lastVal.next = null;
+            }
+            idx = idx.next;
+        }
+        return head;
+    }
+}
+
+class Solution81 {
+    private boolean searchNormal(int[] nums, int target, int startIncludeIdx, int endExcludeIdx) {
+        while (startIncludeIdx < endExcludeIdx) {
+            final int midIdx = (startIncludeIdx + endExcludeIdx) / 2;
+            if (nums[midIdx] == target) {
+                return true;
+            }
+
+            if (nums[midIdx] > target) {
+                endExcludeIdx = midIdx;
+            } else {
+                startIncludeIdx = midIdx + 1;
+            }
+        }
+        return false;
+    }
+
+    private boolean searchTurning(int[] nums, int target, int startIncludeIdx, int endExcludeIdx) {
+        if (startIncludeIdx < endExcludeIdx) {
+            final int midIdx = (startIncludeIdx + endExcludeIdx) / 2;
+            final int mid = nums[midIdx];
+            if (mid == target) {
+                return true;
+            }
+
+            final int start = nums[startIncludeIdx];
+            final int end = nums[endExcludeIdx - 1];
+            if (start == target || end == target) {
+                return true;
+            }
+
+            if (mid < start) {
+                if (target < end && target > mid) {
+                    return searchNormal(nums, target, midIdx + 1, endExcludeIdx);
+                }
+                return searchTurning(nums, target, startIncludeIdx + 1, midIdx);
+            }
+
+            if (mid > end) {
+                if (target > start && target < mid) {
+                    return searchNormal(nums, target, startIncludeIdx + 1, midIdx);
+                }
+                return searchTurning(nums, target, midIdx + 1, endExcludeIdx);
+            }
+
+            if (mid == start && mid == end) {
+                return searchTurning(nums, target, startIncludeIdx + 1, midIdx) ||
+                        searchTurning(nums, target, midIdx + 1, endExcludeIdx);
+            }
+
+            return searchNormal(nums, target, startIncludeIdx + 1, endExcludeIdx - 1);
+        }
+        return false;
+    }
+
+    public boolean search(int[] nums, int target) {
+        int startIdxIncluded = 0;
+        int endIdxExcluded = nums.length;
+        return searchTurning(nums, target, startIdxIncluded, endIdxExcluded);
+    }
+}
+
+class Solution80 {
+    public int removeDuplicates(int[] nums) {
+        int lastVal = nums[0], end = 1;
+        int lastIdx = 1;
+        int count = 0;
+        while (end < nums.length) {
+            if (nums[end] != lastVal) {
+                count = 0;
+                lastVal = nums[end];
+            }
+
+            if (count++ < 2) {
+                nums[lastIdx++] = nums[end++];
+            }
+        }
+        return lastIdx;
+    }
 }
 
 
@@ -173,10 +384,10 @@ class Solution79 {
     public boolean exist(char[][] board, String word) {
         final int rows = board.length;
         final int cols = board[0].length;
-        int[][] used = new int[rows][cols];
+        final char[] chars = word.toCharArray();
         for (int row = 0; row < rows; row++) {
             for (int col = 0; col < cols; col++) {
-                if (backTrace(board, word, row, col, 0, used)) {
+                if (backTrace(board, chars, row, col, 0)) {
                     return true;
                 }
             }
@@ -184,25 +395,26 @@ class Solution79 {
         return false;
     }
 
-    private boolean backTrace(char[][] board, String word, int row, int col, int wordIdx, int[][] used) {
-        if (board[row][col] == word.charAt(wordIdx)) {
-            used[row][col] = 1;
+    private boolean backTrace(char[][] board, char[] chars, int row, int col, int wordIdx) {
+        if (row < 0 || row >= board.length || col < 0 || col >= board[0].length || board[row][col] == '.') {
+            return false;
+        }
+
+        if (board[row][col] == chars[wordIdx]) {
+            char c = board[row][col];
+            board[row][col] = '.';
             final int nextWordIdx = wordIdx + 1;
-            if (nextWordIdx >= word.length()) {
+            if (nextWordIdx >= chars.length) {
                 return true;
             }
-            for (int[] position : new int[][]{new int[]{row - 1, col}, new int[]{row + 1, col}, new int[]{row, col - 1}, new int[]{row, col + 1}}) {
-                final int nextRow = position[0];
-                final int nextCol = position[1];
-                if (nextRow >= 0 && nextRow < board.length && nextCol >= 0 && nextCol < board[0].length && used[nextRow][nextCol] == 0) {
-                    used[nextRow][nextCol] = 1;
-                    if (backTrace(board, word, nextRow, nextCol, nextWordIdx, used)) {
-                        return true;
-                    }
-                    used[nextRow][nextCol] = 0;
-                }
+
+            if (backTrace(board, chars, row - 1, col, nextWordIdx) ||
+                    backTrace(board, chars, row + 1, col, nextWordIdx) ||
+                    backTrace(board, chars, row, col - 1, nextWordIdx) ||
+                    backTrace(board, chars, row, col + 1, nextWordIdx)) {
+                return true;
             }
-            used[row][col] = 0;
+            board[row][col] = c;
         }
 
         return false;
