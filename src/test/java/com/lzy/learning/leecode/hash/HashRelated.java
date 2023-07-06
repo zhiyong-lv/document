@@ -10,7 +10,10 @@ import java.util.Set;
 
 public class HashRelated {
     public static void main(String[] args) {
-        System.out.printf("result is: %s\n", new Solution15().threeSum(new int[]{-1, 0, 1, 2, -1, -4}));
+        // System.out.printf("result is: %s\n", new Solution18().fourSum(new int[]{1,0,-1,0,-2,2}, 0));
+        // System.out.printf("result is: %s\n", new Solution18().fourSum(new int[]{-3,-2,-1,0,0,1,2,3}, 0));
+        // System.out.printf("result is: %s\n", new Solution18().fourSum(new int[]{1,0,-1,0,-2,2}, 0));
+        System.out.printf("result is: %s\n", new Solution18().fourSum(new int[]{1,-2,-5,-4,-3,3,3,5}, -11));
     }
 }
 
@@ -413,6 +416,35 @@ class Solution15 {
                     firstIdx++;
                 }
             }
+        }
+        return rst;
+    }
+}
+
+class Solution18 {
+    public List<List<Integer>> fourSum(int[] nums, int target) {
+        Arrays.sort(nums);
+        List<List<Integer>> rst = new ArrayList<>();
+        for (int num1Idx = 0; num1Idx < nums.length - 3; ) {
+            for (int num2Idx = num1Idx + 1; num2Idx < nums.length - 2; ) {
+                for (int num3Idx = num2Idx + 1, num4Idx = nums.length - 1; num3Idx < num4Idx; ) {
+                    final int sum = nums[num1Idx] + nums[num2Idx] + nums[num3Idx] + nums[num4Idx];
+                    if ((long)nums[num1Idx] + (long)nums[num2Idx] + (long)nums[num3Idx] + (long)nums[num4Idx] != sum) {
+                        break;
+                    }
+                    if (sum == target) {
+                        rst.add(Arrays.asList(nums[num1Idx], nums[num2Idx], nums[num3Idx], nums[num4Idx]));
+                        do { num3Idx++; } while (num3Idx < num4Idx && nums[num3Idx] == nums[num3Idx - 1]);
+                        do { num4Idx--; } while (num3Idx < num4Idx && nums[num4Idx] == nums[num4Idx + 1]);
+                    } else if (sum > target) {
+                        do { num4Idx--; } while (num3Idx < num4Idx && nums[num4Idx] == nums[num4Idx + 1]);
+                    } else {
+                        do { num3Idx++; } while (num3Idx < num4Idx && nums[num3Idx] == nums[num3Idx - 1]);
+                    }
+                }
+                do { num2Idx++; } while (num2Idx < nums.length - 2 && nums[num2Idx] == nums[num2Idx - 1]);
+            }
+            do { num1Idx++; } while (num1Idx < nums.length - 2 && nums[num1Idx] == nums[num1Idx - 1]);
         }
         return rst;
     }
