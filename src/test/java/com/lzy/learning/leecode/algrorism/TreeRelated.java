@@ -18,6 +18,134 @@ import java.util.stream.Stream;
 public class TreeRelated {
 }
 
+class Solution538 {
+    public TreeNode convertBST(TreeNode root) {
+        traversal(root, 0);
+        return root;
+    }
+
+    int traversal(TreeNode node, int sum) {
+        if (Objects.isNull(node)) {
+            return sum;
+        }
+
+        int sumAllFromRight = traversal(node.right, sum);
+        node.val += sumAllFromRight;
+        return traversal(node.left, node.val);
+    }
+}
+
+class Solution108 {
+    public TreeNode sortedArrayToBST(int[] nums) {
+        return sortedArrayToBST(nums, 0, nums.length);
+    }
+
+    TreeNode sortedArrayToBST(int[] nums, int start, int end) {
+        if (end <= start) return null;
+        int midIdx = (start + end) / 2;
+        TreeNode node = new TreeNode(nums[midIdx]);
+        node.left = sortedArrayToBST(nums, start, midIdx);
+        node.right = sortedArrayToBST(nums, midIdx + 1, end);
+        return node;
+    }
+}
+
+class Solution669 {
+    public TreeNode trimBST(TreeNode root, int low, int high) {
+        TreeNode node = root;
+        while (Objects.nonNull(node)) {
+            if (node.val > high) node = node.left;
+            else if (node.val < low) node = node.right;
+            else break;
+        }
+
+        if (Objects.nonNull(node)) {
+            node.left = trimBST(node.left, low, high);
+            node.right = trimBST(node.right, low, high);
+        }
+        return node;
+    }
+}
+
+class Solution450 {
+    public TreeNode deleteNode(TreeNode root, int key) {
+        if (Objects.isNull(root)) return null;
+        if (key == root.val) {
+            return replaceNode(root);
+        } else if (key < root.val) {
+            root.left = deleteNode(root.left, key);
+        } else {
+            root.right = deleteNode(root.right, key);
+        }
+        return root;
+    }
+
+    TreeNode replaceNode(TreeNode find) {
+        if (Objects.isNull(find.left) && Objects.isNull(find.right)) {
+            return null;
+        }
+        if (Objects.isNull(find.left)) return find.right;
+        if (Objects.isNull(find.right)) return find.left;
+        TreeNode insertNode = find.right;
+        while (Objects.nonNull(insertNode.left)) {
+            insertNode = insertNode.left;
+        }
+        insertNode.left = find.left;
+        return find.right;
+    }
+}
+
+class Solution701Iteration {
+    public TreeNode insertIntoBST(TreeNode root, int val) {
+        if (Objects.isNull(root)) return new TreeNode(val);
+        Stack<TreeNode> stack = new Stack<>();
+        stack.push(root);
+        while (!stack.isEmpty()) {
+            final TreeNode node = stack.pop();
+            if (val < node.val) {
+                if (Objects.isNull(node.left)) {
+                    node.left = new TreeNode(val);
+                    break;
+                } else {
+                    stack.push(node.left);
+                }
+            } else {
+                if (Objects.isNull(node.right)) {
+                    node.right = new TreeNode(val);
+                    break;
+                } else {
+                    stack.push(node.right);
+                }
+            }
+        }
+        return root;
+    }
+}
+
+class Solution701 {
+    public TreeNode insertIntoBST(TreeNode root, int val) {
+        if (Objects.isNull(root)) return new TreeNode(val);
+        traversal(root, val);
+        return root;
+    }
+
+    void traversal(TreeNode node, int val) {
+        if (node.val > val) {
+            if (Objects.isNull(node.left)) {
+                node.left = new TreeNode(val);
+            } else {
+                traversal(node.left, val);
+            }
+        } else {
+            if (Objects.isNull(node.right)) {
+                node.right = new TreeNode(val);
+            } else {
+                traversal(node.right, val);
+            }
+        }
+    }
+}
+
 class Solution235 {
     public TreeNode lowestCommonAncestor(TreeNode root, TreeNode p, TreeNode q) {
         int max = Math.max(p.val, q.val);
