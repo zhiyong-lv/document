@@ -20,8 +20,66 @@ public class LeeCodeFrom66 {
         new Solution68().greedyFeed(words.split(","), maxWidth, rst, 0, 0, 0);
         Assertions.assertEquals(expectedListSize, rst.size());
     }
+
+    @ParameterizedTest
+    @CsvSource({
+            "4,2",
+            "0,0",
+            "1,1",
+            "2,1",
+            "3,1",
+            "5,2",
+            "8,2",
+            "9,3",
+    })
+    void mySqrtTest(int input, int expect) {
+        Assertions.assertEquals(expect, new Solution69().mySqrt(input));
+    }
 }
 
+class Solution70 {
+    public int climbStairs(int n) {
+        int[] rst = new int[n];
+        rst[0] = 1;
+        rst[1] = 2;
+        for (int i = 2; i < n; i++) {
+            rst[i] = rst[i - 1] + rst[i - 2];
+        }
+        return rst[n - 1];
+    }
+}
+
+class Solution69 {
+    public int mySqrt(int x) {
+        if (x <= 1) {
+            return x;
+        }
+
+        int div = 1, rest = x;
+        while (div < rest) {
+            div *= 2;
+            rest /= 2;
+        }
+        int s = rest, l = div;
+        while (s < l) {
+            int mid = (s + l) / 2;
+            if (mid == s) {
+                return mid;
+            }
+
+            int multiRst = mid * mid;
+            if (multiRst > x || multiRst < 0) {
+                l = mid;
+            } else if (multiRst < x) {
+                s = mid;
+            } else {
+                return mid;
+            }
+        }
+
+        return s;
+    }
+}
 
 class Solution68 {
     public List<String> fullJustify(String[] words, int maxWidth) {
