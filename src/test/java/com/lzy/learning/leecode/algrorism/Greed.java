@@ -1,9 +1,112 @@
 package com.lzy.learning.leecode.algrorism;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 public class Greed {
+}
+
+class Solution56 {
+    public int[][] merge(int[][] intervals) {
+        Arrays.sort(intervals, Comparator.comparingInt(a -> a[0]));
+        List<int[]> list = new ArrayList<>();
+        int[] candidate = null;
+        for (int i = 0; i < intervals.length; i++) {
+            if (Objects.isNull(candidate)) candidate = intervals[i];
+            else if (intervals[i][0] < candidate[1]) candidate[1] = Math.max(candidate[1], intervals[i][1]);
+            else {list.add(candidate); candidate = intervals[i];}
+            if (i == intervals.length - 1 && Objects.nonNull(candidate)) list.add(candidate);
+        }
+        int[][] result = new int[list.size()][2];
+        for (int i = 0; i < list.size(); i++) {
+            result[i] = list.get(i);
+        }
+        return result;
+    }
+}
+
+class Solution763 {
+    public List<Integer> partitionLabels(String s) {
+        List<Integer> result = new ArrayList<>();
+        Map<Character, Integer> cache = new HashMap<>();
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            cache.put(c, i);
+        }
+        for (int i = 0, max = -1, preIdx = -1; i < s.length(); i++) {
+            char c = s.charAt(i);
+            Integer lastIdx = cache.get(c);
+            if (max < lastIdx) {
+                max = lastIdx;
+            }
+            if ((lastIdx == i && max == lastIdx) || i == s.length() - 1) {
+                result.add(i - preIdx);
+                preIdx = i;
+                max = -1;
+            }
+        }
+        return result;
+    }
+}
+
+class Solution435 {
+    public static void main(String[] args) {
+        int[][] points = new int[][]{{1, 2}, {1, 3}, {1, 4}};
+        final int i = new Solution435().eraseOverlapIntervals(points);
+        System.out.println(i);
+    }
+
+    public int eraseOverlapIntervals(int[][] intervals) {
+        Arrays.sort(intervals, (p1, p2) -> p1[0] != p2[0] ? Integer.compare(p1[0], p2[0]) : (Integer.compare(p1[1], p2[1])));
+        int count = 0;
+        int pre = intervals[0][1];
+        for (int i = 1; i < intervals.length; i++) {
+            if (pre > intervals[i][0]) {
+                count++;
+                pre = Math.min(pre, intervals[i][1]);
+            } else {
+                pre = intervals[i][1];
+            }
+        }
+        return count;
+    }
+}
+
+class Solution452 {
+    public static void main(String[] args) {
+        int[][] points = new int[][]{{-2147483646, -2147483645}, {2147483646, 2147483647}};
+        // int[][] points = new int[][]{{1, 2}, {3, 4}};
+        final int minArrowShots = new Solution452().findMinArrowShots(points);
+        System.out.println(minArrowShots);
+    }
+
+    public int findMinArrowShots(int[][] points) {
+        Arrays.sort(points, (p1, p2) -> p1[0] != p2[0] ? Integer.compare(p1[0], p2[0]) : (Integer.compare(p1[1], p2[1])));
+        int count = 0;
+        for (int i = 0; i < points.length; i++) {
+            int start = points[i][0];
+            int end = points[i][1];
+            count++;
+
+            for (int j = i + 1; j < points.length; j++) {
+                int newStart = points[j][0];
+                int newEnd = points[j][1];
+                if (newStart <= end) {
+                    start = Math.max(start, newStart);
+                    end = Math.min(end, newEnd);
+                    i++;
+                } else {
+                    break;
+                }
+            }
+        }
+        return count;
+    }
 }
 
 class Solution406 {
