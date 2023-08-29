@@ -4,11 +4,62 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
 public class Greed {
+}
+
+class Solution968 {
+    public int minCameraCover(TreeNode root) {
+        LinkedList<TreeNode> list = new LinkedList<>();
+        do {
+            if (Objects.isNull(root)) root = list.removeFirst();
+            if (Objects.nonNull(root.left) || Objects.nonNull(root.right)) list.addFirst(root);
+            if (Objects.nonNull(root.right)) list.addFirst(root.right);
+            if (Objects.nonNull(root.left)) root = root.left;
+            else root = null;
+        }
+    }
+
+    void traversal(TreeNode root) {
+        if (Objects.nonNull(root.left)) traversal(root.left);
+        if (Objects.nonNull(root.right)) traversal(root.right);
+
+    }
+}
+
+class Solution738 {
+    public static void main(String[] args) {
+        System.out.println(new Solution738().monotoneIncreasingDigits(10));
+    }
+
+    public int monotoneIncreasingDigits(int n) {
+        String s = String.valueOf(n);
+        char[] c = new char[s.length()];
+        c[0] = s.charAt(0);
+
+        int[] rst = new int[s.length()];
+        rst[0] = 1;
+        for (int i = 1; i < s.length(); i++) {
+            rst[i] = s.charAt(i) - s.charAt(i - 1);
+            if (rst[i] < 0) {
+                for (int j = s.length() - 1; j >= 0; j--) {
+                    if (j >= i || rst[j] <= 0) {
+                        c[j] = '9';
+                    } else {
+                        c[j] -= 1;
+                        return Integer.parseInt(new String(c));
+                    }
+                }
+            } else {
+                c[i] = s.charAt(i);
+            }
+        }
+        return n;
+    }
 }
 
 class Solution56 {
@@ -19,7 +70,10 @@ class Solution56 {
         for (int i = 0; i < intervals.length; i++) {
             if (Objects.isNull(candidate)) candidate = intervals[i];
             else if (intervals[i][0] < candidate[1]) candidate[1] = Math.max(candidate[1], intervals[i][1]);
-            else {list.add(candidate); candidate = intervals[i];}
+            else {
+                list.add(candidate);
+                candidate = intervals[i];
+            }
             if (i == intervals.length - 1 && Objects.nonNull(candidate)) list.add(candidate);
         }
         int[][] result = new int[list.size()][2];
