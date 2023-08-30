@@ -13,22 +13,37 @@ public class Greed {
 }
 
 class Solution968 {
-    public int minCameraCover(TreeNode root) {
-        LinkedList<TreeNode> list = new LinkedList<>();
-        do {
-            if (Objects.isNull(root)) root = list.removeFirst();
-            if (Objects.nonNull(root.left) || Objects.nonNull(root.right)) list.addFirst(root);
-            if (Objects.nonNull(root.right)) list.addFirst(root.right);
-            if (Objects.nonNull(root.left)) root = root.left;
-            else root = null;
-        }
-    }
-
-    void traversal(TreeNode root) {
-        if (Objects.nonNull(root.left)) traversal(root.left);
-        if (Objects.nonNull(root.right)) traversal(root.right);
-
-    }
+//    public int minCameraCover(TreeNode root) {
+//        LinkedList<TreeNode> list = new LinkedList<>();
+//        do {
+//            if (Objects.isNull(root)) root = list.removeFirst();
+//            if (Objects.nonNull(root.left) || Objects.nonNull(root.right)) list.addFirst(root);
+//            if (Objects.nonNull(root.right)) list.addFirst(root.right);
+//            if (Objects.nonNull(root.left)) root = root.left;
+//            else root = null;
+//        }
+//    }
+//
+//    void traversal(TreeNode root) {
+//        if (Objects.nonNull(root.left)) traversal(root.left);
+//        if (Objects.nonNull(root.right)) traversal(root.right);
+//
+//    }over(TreeNode root) {
+//        LinkedList<TreeNode> list = new LinkedList<>();
+//        do {
+//            if (Objects.isNull(root)) root = list.removeFirst();
+//            if (Objects.nonNull(root.left) || Objects.nonNull(root.right)) list.addFirst(root);
+//            if (Objects.nonNull(root.right)) list.addFirst(root.right);
+//            if (Objects.nonNull(root.left)) root = root.left;
+//            else root = null;
+//        }
+//    }
+//
+//    void traversal(TreeNode root) {
+//        if (Objects.nonNull(root.left)) traversal(root.left);
+//        if (Objects.nonNull(root.right)) traversal(root.right);
+//
+//    }
 }
 
 class Solution738 {
